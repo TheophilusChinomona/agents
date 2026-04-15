@@ -31,16 +31,38 @@ def retain_keys(data, keys_to_retain):
         return data
 
 class Executor:
-    def __init__(self, default_model='gpt-3.5-turbo-16k') -> None:
+    def __init__(
+        self,
+        default_model: str = None,
+        api_key: str = None,
+        base_url: str = None,
+    ) -> None:
         load_dotenv()
-        max_token_model = {'gpt-3.5-turbo-16k':15000, 'gpt-4-1106-preview':95000}
-        self.token_limit = max_token_model.get(default_model)
         self.prompter = Prompter()
-        self.openai_api_key = os.getenv("OPENAI_API_KEY")
-        self.llm = ChatOpenAI(
-            model=default_model, #gpt-3.5-turbo"
-            temperature=0,
-        )
+
+        # Support any OpenAI-compatible provider via env vars or args
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY") or os.getenv("LLM_API_KEY")
+        self.base_url = base_url or os.getenv("LLM_BASE_URL")
+        self.model = default_model or os.getenv("LLM_MODEL", "gpt-3.5-turbo-16k")
+
+        llm_kwargs = {
+            "model": self.model,
+            "temperature": 0,
+            "api_key": self.api_key,
+        }
+        if self.base_url:
+            llm_kwargs["base_url"] = self.base_url
+
+        self.llm = ChatOpenAI(**llm_kwargs)
+
+        max_token_model = {
+            "gpt-3.5-turbo-16k": 15000,
+            "gpt-4-1106-preview": 95000,
+            "gpt-4o-mini": 125000,
+            "gpt-4o": 125000,
+        }
+        self.token_limit = max_token_model.get(self.model, 15000)
+
         self.gamma = Gamma()
         self.chroma = Chroma()
         self.polymarket = Polymarket()
