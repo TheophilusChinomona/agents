@@ -28,7 +28,9 @@ class GammaMarketClient:
             if "events" in market_object:
                 events: list[PolymarketEvent] = []
                 for market_event_obj in market_object["events"]:
-                    events.append(self.parse_nested_event(market_event_obj))
+                    parsed = self.parse_nested_event(market_event_obj)
+                    if parsed is not None:
+                        events.append(parsed)
                 market_object["events"] = events
 
             # These two fields below are returned as stringified lists from the api

@@ -1,3 +1,4 @@
+import httpx
 import logging
 
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
@@ -20,7 +21,13 @@ class Creator:
     @retry(
         stop=stop_after_attempt(MAX_RETRIES),
         wait=wait_exponential(multiplier=1, min=2, max=30),
-        retry=retry_if_exception_type((ConnectionError, TimeoutError, RuntimeError)),
+        retry=retry_if_exception_type((
+            ConnectionError,
+            TimeoutError,
+            RuntimeError,
+            httpx.TimeoutException,
+            httpx.NetworkError,
+        )),
         reraise=True,
     )
     def one_best_market(self):

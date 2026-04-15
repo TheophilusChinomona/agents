@@ -1,6 +1,7 @@
 import logging
 import shutil
 
+import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from agents.application.executor import Executor as Agent
@@ -33,7 +34,13 @@ class Trader:
     @retry(
         stop=stop_after_attempt(MAX_RETRIES),
         wait=wait_exponential(multiplier=1, min=2, max=30),
-        retry=retry_if_exception_type((ConnectionError, TimeoutError, RuntimeError)),
+        retry=retry_if_exception_type((
+            ConnectionError,
+            TimeoutError,
+            RuntimeError,
+            httpx.TimeoutException,
+            httpx.NetworkError,
+        )),
         reraise=True,
     )
     def one_best_trade(self) -> None:

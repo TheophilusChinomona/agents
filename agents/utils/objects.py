@@ -212,8 +212,8 @@ class SimpleEvent(BaseModel):
 
 
 class Source(BaseModel):
-    id: Optional[str]
-    name: Optional[str]
+    id: Optional[str] = None
+    name: Optional[str] = None
 
 
 class Article(BaseModel):

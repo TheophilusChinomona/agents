@@ -100,7 +100,7 @@ class Executor:
         else:
             # If exceeding limit, process in chunks
             chunk_size = len(combined_data) // ((total_tokens // token_limit) + 1)
-            print(f'total tokens {total_tokens} exceeding llm capacity, now will split and answer')
+            logger.info('total tokens %d exceeding llm capacity, now will split and answer', total_tokens)
             group_size = (total_tokens // token_limit) + 1 # 3 is safe factor
             keys_no_meaning = ['image','pagerDutyNotificationEnabled','resolvedBy','endDate','clobTokenIds','negRiskMarketID','conditionId','updatedAt','startDate']
             useful_keys = ['id','questionID','description','liquidity','clobTokenIds','outcomes','outcomePrices','volume','startDate','endDate','question','questionID','events']

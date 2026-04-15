@@ -20,6 +20,9 @@ from py_clob_client.clob_types import (
     OrderBookSummary,
 )
 from py_clob_client.order_builder.constants import BUY
+from py_order_utils.builders import OrderBuilder
+from py_order_utils.model import OrderData
+from py_order_utils.signer import Signer
 
 from agents.utils.objects import SimpleMarket, SimpleEvent
 
@@ -41,10 +44,6 @@ class Polymarket:
 
         self.chain_id = 137  # POLYGON
         self.private_key = os.getenv("POLYGON_WALLET_PRIVATE_KEY")
-        if not self.private_key:
-            raise ValueError(
-                "POLYGON_WALLET_PRIVATE_KEY environment variable is required"
-            )
 
         self.polygon_rpc = "https://polygon-rpc.com"
         self.w3 = Web3(Web3.HTTPProvider(self.polygon_rpc))
@@ -72,12 +71,15 @@ class Polymarket:
         self._init_approvals(False)
 
     def _init_api_keys(self) -> None:
+        if not self.private_key:
+            raise ValueError(
+                "POLYGON_WALLET_PRIVATE_KEY is required for trading operations"
+            )
         self.client = ClobClient(
             self.clob_url, key=self.private_key, chain_id=self.chain_id
         )
         self.credentials = self.client.create_or_derive_api_creds()
         self.client.set_api_creds(self.credentials)
-        # print(self.credentials)
 
     def _init_approvals(self, run: bool = False) -> None:
         if not run:
@@ -104,7 +106,7 @@ class Polymarket:
         usdc_approve_tx_receipt = web3.eth.wait_for_transaction_receipt(
             send_usdc_approve_tx, 600
         )
-        print(usdc_approve_tx_receipt)
+        logger.info("USDC approve receipt (CTF Exchange): %s", usdc_approve_tx_receipt)
 
         nonce = web3.eth.get_transaction_count(pub_key)
 
@@ -120,7 +122,7 @@ class Polymarket:
         ctf_approval_tx_receipt = web3.eth.wait_for_transaction_receipt(
             send_ctf_approval_tx, 600
         )
-        print(ctf_approval_tx_receipt)
+        logger.info("CTF approval receipt: %s", ctf_approval_tx_receipt)
 
         nonce = web3.eth.get_transaction_count(pub_key)
 
@@ -137,7 +139,7 @@ class Polymarket:
         usdc_approve_tx_receipt = web3.eth.wait_for_transaction_receipt(
             send_usdc_approve_tx, 600
         )
-        print(usdc_approve_tx_receipt)
+        logger.info("USDC approve receipt (Neg Risk CTF): %s", usdc_approve_tx_receipt)
 
         nonce = web3.eth.get_transaction_count(pub_key)
 
@@ -153,7 +155,7 @@ class Polymarket:
         ctf_approval_tx_receipt = web3.eth.wait_for_transaction_receipt(
             send_ctf_approval_tx, 600
         )
-        print(ctf_approval_tx_receipt)
+        logger.info("CTF approval receipt (Neg Risk): %s", ctf_approval_tx_receipt)
 
         nonce = web3.eth.get_transaction_count(pub_key)
 
@@ -170,7 +172,7 @@ class Polymarket:
         usdc_approve_tx_receipt = web3.eth.wait_for_transaction_receipt(
             send_usdc_approve_tx, 600
         )
-        print(usdc_approve_tx_receipt)
+        logger.info("USDC approve receipt (Neg Risk Adapter): %s", usdc_approve_tx_receipt)
 
         nonce = web3.eth.get_transaction_count(pub_key)
 
@@ -186,7 +188,7 @@ class Polymarket:
         ctf_approval_tx_receipt = web3.eth.wait_for_transaction_receipt(
             send_ctf_approval_tx, 600
         )
-        print(ctf_approval_tx_receipt)
+        logger.info("CTF approval receipt (Neg Risk Adapter): %s", ctf_approval_tx_receipt)
 
     def get_all_markets(self) -> "list[SimpleMarket]":
         markets = []
@@ -353,7 +355,7 @@ class Polymarket:
         balance_res = self.usdc.functions.balanceOf(
             self.get_address_for_private_key()
         ).call()
-        return float(balance_res / 10e5)
+        return float(balance_res / 10**6)
 
 
 def test():
