@@ -1,10 +1,10 @@
-import os
-import json
 import ast
+import json
+import logging
+import math
+import os
 import re
 from typing import List, Dict, Any
-
-import math
 
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -15,6 +15,8 @@ from agents.connectors.chroma import PolymarketRAG as Chroma
 from agents.utils.objects import SimpleEvent, SimpleMarket
 from agents.application.prompts import Prompter
 from agents.polymarket.polymarket import Polymarket
+
+logger = logging.getLogger(__name__)
 
 def retain_keys(data, keys_to_retain):
     if isinstance(data, dict):
@@ -129,9 +131,7 @@ class Executor:
 
     def filter_events_with_rag(self, events: "list[SimpleEvent]") -> str:
         prompt = self.prompter.filter_events()
-        print()
-        print("... prompting ... ", prompt)
-        print()
+        logger.info("... prompting ... %s", prompt)
         return self.chroma.events(events, prompt)
 
     def map_filtered_events_to_markets(
@@ -149,9 +149,7 @@ class Executor:
 
     def filter_markets(self, markets) -> "list[tuple]":
         prompt = self.prompter.filter_markets()
-        print()
-        print("... prompting ... ", prompt)
-        print()
+        logger.info("... prompting ... %s", prompt)
         return self.chroma.markets(markets, prompt)
 
     def source_best_trade(self, market_object) -> str:
@@ -163,36 +161,55 @@ class Executor:
         description = market_document["page_content"]
 
         prompt = self.prompter.superforecaster(question, description, outcomes)
-        print()
-        print("... prompting ... ", prompt)
-        print()
+        logger.info("... prompting superforecaster: %s", prompt)
         result = self.llm.invoke(prompt)
         content = result.content
+        logger.info("Superforecaster result: %s", content)
 
-        print("result: ", content)
-        print()
         prompt = self.prompter.one_best_trade(content, outcomes, outcome_prices)
-        print("... prompting ... ", prompt)
-        print()
+        logger.info("... prompting trade: %s", prompt)
         result = self.llm.invoke(prompt)
         content = result.content
-
-        print("result: ", content)
-        print()
+        logger.info("Trade result: %s", content)
         return content
 
     def format_trade_prompt_for_execution(self, best_trade: str) -> float:
+        """Parse LLM trade output into a safe USDC amount.
+
+        Expected format: 'price:0.5, size:0.1, side:BUY,'
+        Returns: size_fraction * usdc_balance
+        """
         data = best_trade.split(",")
-        # price = re.findall("\d+\.\d+", data[0])[0]
-        size = re.findall("\d+\.\d+", data[1])[0]
+        if len(data) < 2:
+            raise ValueError(
+                f"Trade output has unexpected format (need >=2 comma-separated parts): {best_trade!r}"
+            )
+
+        size_matches = re.findall(r"\d+\.?\d*", data[1])
+        if not size_matches:
+            raise ValueError(
+                f"Could not extract size from trade output: {data[1]!r}"
+            )
+
+        size = float(size_matches[0])
+        if not (0 < size <= 1):
+            raise ValueError(
+                f"Trade size {size} out of safe range (0, 1] — refusing to execute"
+            )
+
         usdc_balance = self.polymarket.get_usdc_balance()
-        return float(size) * usdc_balance
+        amount = size * usdc_balance
+        logger.info(
+            "Trade size fraction: %.4f, USDC balance: %.2f, order amount: %.2f",
+            size,
+            usdc_balance,
+            amount,
+        )
+        return amount
 
     def source_best_market_to_create(self, filtered_markets) -> str:
         prompt = self.prompter.create_new_market(filtered_markets)
-        print()
-        print("... prompting ... ", prompt)
-        print()
+        logger.info("... prompting market creation: %s", prompt)
         result = self.llm.invoke(prompt)
         content = result.content
         return content

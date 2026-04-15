@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import time
 
@@ -8,6 +9,8 @@ from langchain_community.vectorstores.chroma import Chroma
 
 from agents.polymarket.gamma import GammaMarketClient
 from agents.utils.objects import SimpleEvent, SimpleMarket
+
+logger = logging.getLogger(__name__)
 
 
 class PolymarketRAG:
