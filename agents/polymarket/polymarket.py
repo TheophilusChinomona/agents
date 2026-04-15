@@ -67,10 +67,13 @@ class Polymarket:
             address=self.ctf_address, abi=self.erc1155_set_approval
         )
 
-        self._init_api_keys()
         self._init_approvals(False)
+        self._client_initialized = False
 
-    def _init_api_keys(self) -> None:
+    def _ensure_client(self) -> None:
+        """Lazily initialize CLOB client only when trading operations are needed."""
+        if self._client_initialized:
+            return
         if not self.private_key:
             raise ValueError(
                 "POLYGON_WALLET_PRIVATE_KEY is required for trading operations"
@@ -80,6 +83,7 @@ class Polymarket:
         )
         self.credentials = self.client.create_or_derive_api_creds()
         self.client.set_api_creds(self.credentials)
+        self._client_initialized = True
 
     def _init_approvals(self, run: bool = False) -> None:
         if not run:
@@ -288,6 +292,7 @@ class Polymarket:
         return self.filter_events_for_trading(all_events)
 
     def get_sampling_simplified_markets(self) -> "list[SimpleEvent]":
+        self._ensure_client()
         markets = []
         raw_sampling_simplified_markets = self.client.get_sampling_simplified_markets()
         for raw_market in raw_sampling_simplified_markets["data"]:
@@ -297,9 +302,11 @@ class Polymarket:
         return markets
 
     def get_orderbook(self, token_id: str) -> OrderBookSummary:
+        self._ensure_client()
         return self.client.get_order_book(token_id)
 
     def get_orderbook_price(self, token_id: str) -> float:
+        self._ensure_client()
         return float(self.client.get_price(token_id))
 
     def get_address_for_private_key(self):
@@ -335,11 +342,13 @@ class Polymarket:
         return order
 
     def execute_order(self, price, size, side, token_id) -> str:
+        self._ensure_client()
         return self.client.create_and_post_order(
             OrderArgs(price=price, size=size, side=side, token_id=token_id)
         )
 
     def execute_market_order(self, market, amount) -> str:
+        self._ensure_client()
         token_id = ast.literal_eval(market[0].dict()["metadata"]["clob_token_ids"])[1]
         order_args = MarketOrderArgs(
             token_id=token_id,
